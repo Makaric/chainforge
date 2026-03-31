@@ -1,0 +1,59 @@
+{
+  "name": "chainforge",
+  "version": "0.1.0",
+  "description": "Blockchain toolkit plugin for Claude Code — read-only multi-chain tools",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "blockchain",
+    "ethereum",
+    "solana",
+    "bitcoin",
+    "ton",
+    "tron",
+    "cosmos",
+    "claude-code",
+    "web3",
+    "read-only"
+  ],
+  "author": "Makaric (VoidNomad)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Makaric/chainforge"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint": "^10.1.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.2"
+  },
+  "dependencies": {
+    "@cosmjs/encoding": "^0.38.1",
+    "@cosmjs/stargate": "^0.38.1",
+    "@noble/secp256k1": "^3.0.0",
+    "@solana/web3.js": "^1.98.4",
+    "@ton/core": "^0.63.1",
+    "@ton/crypto": "^3.3.0",
+    "@ton/ton": "^16.2.2",
+    "bitcoin-address-validation": "^3.0.0",
+    "bitcoinjs-lib": "^7.0.1",
+    "ecpair": "^3.0.1",
+    "tiny-secp256k1": "^2.2.4",
+    "tronweb": "^6.2.2",
+    "viem": "^2.47.6"
+  }
+}
