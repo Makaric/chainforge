@@ -234,7 +234,6 @@ export class BitcoinProvider implements IBlockchainProvider {
       throw new InvalidAddressError(toAddress, 'Bitcoin');
     }
 
-    const sats = Math.round(parseFloat(amount) * 1e8);
     const deepLink = `bitcoin:${toAddress}?amount=${amount}`;
 
     return {

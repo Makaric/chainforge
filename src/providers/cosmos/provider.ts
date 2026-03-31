@@ -146,7 +146,10 @@ export class CosmosProvider implements IBlockchainProvider {
       const tx = await client.getTx(hash);
       if (!tx) return null;
 
-      return cosmTxToInfo(tx);
+      // Pass chain config to parser to correctly format amounts
+      const decimals = this.chain.nativeCurrency.decimals;
+
+      return cosmTxToInfo(tx, decimals);
     } catch {
       return null;
     }
@@ -161,7 +164,9 @@ export class CosmosProvider implements IBlockchainProvider {
 
     try {
       const txs = await client.searchTx(`message.sender='${address}'`);
-      return txs.slice(0, limit).map(cosmTxToInfo);
+      const decimals = this.chain.nativeCurrency.decimals;
+
+      return txs.slice(0, limit).map((tx) => cosmTxToInfo(tx, decimals));
     } catch (err) {
       throw new RpcError(
         'searchTx',
@@ -209,6 +214,7 @@ export class CosmosProvider implements IBlockchainProvider {
       amount,
       currency: symbol,
       qrData: `${this.config.bech32Prefix}:${toAddress}?amount=${amount}${this.config.denom}`,
+      deepLink: `${this.config.bech32Prefix}:${toAddress}?amount=${amount}${this.config.denom}`,
     };
   }
 
@@ -242,12 +248,37 @@ export class CosmosProvider implements IBlockchainProvider {
   }
 }
 
-function cosmTxToInfo(tx: IndexedTx): TransactionInfo {
+function cosmTxToInfo(tx: IndexedTx, decimals: number = 6): TransactionInfo {
+  let from = '';
+  let to: string | null = null;
+  let value = '0';
+
+  // Parse from tx.events (available on IndexedTx; tx.tx is raw Uint8Array)
+  try {
+    for (const event of tx.events) {
+      if (event.type === 'transfer') {
+        for (const attr of event.attributes) {
+          if (attr.key === 'sender') from = attr.value;
+          if (attr.key === 'recipient') to = attr.value;
+          if (attr.key === 'amount') {
+            const match = attr.value.match(/^(\d+)/);
+            if (match) {
+              value = (Number(match[1]) / Math.pow(10, decimals)).toFixed(decimals);
+            }
+          }
+        }
+        break; // Use first transfer event
+      }
+    }
+  } catch {
+    // Events parsing is best-effort
+  }
+
   return {
     hash: tx.hash,
-    from: '',
-    to: null,
-    value: '0',
+    from,
+    to,
+    value,
     blockNumber: tx.height,
     timestamp: null,
     status: tx.code === 0 ? 'confirmed' : 'failed',

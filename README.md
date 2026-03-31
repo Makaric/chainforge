@@ -1,19 +1,29 @@
-# ChainForge
+# ⛓️ ChainForge
 
-Blockchain toolkit plugin for Claude Code. Read-only multi-chain tools — balances, gas, transactions, contract reads. No private keys, no signing, no hidden fees.
+**A secure, read-only blockchain toolkit and skill set for Claude Code.**
 
-## Chains
+ChainForge is a public open-source plugin/toolkit designed to equip Claude Code with instant blockchain interaction capabilities. Created by the Void Nomad Tandem, this tool is built for wanderers and developers who need quick, secure, and reliable blockchain data directly in their CLI workflow.
 
-| Provider | Networks | Native |
-|----------|----------|--------|
-| EVM | Ethereum, BSC, Polygon, Arbitrum One, Optimism, Avalanche C-Chain | ETH / BNB / POL / AVAX |
-| Bitcoin | Mainnet, Testnet | BTC |
-| Solana | Mainnet, Testnet, Devnet | SOL |
-| TON | Mainnet, Testnet | TON |
-| TRON | Mainnet, Nile Testnet | TRX |
-| Cosmos | Cosmos Hub, Osmosis, Celestia, Injective | ATOM / OSMO / TIA / INJ |
+## 🛡️ The Sacred Rule (Security First)
 
-## Install
+**ZERO PRIVATE KEYS. ZERO SIGNERS.**
+
+ChainForge operates strictly in **read-only** mode. We use public RPCs, indexed APIs, and read-only clients (`viem`, `web3.js`, etc.). There is absolutely no code here that asks for, stores, or uses your seed phrases or private keys.
+
+Transactions (like tips or payments) are generated purely as standard deep links (EIP-681, BIP-21, Solana Pay, `ton://`) for you to securely scan and confirm in your own mobile or hardware wallet.
+
+## 🪐 Supported Ecosystems (6 Providers)
+
+Provider | Networks | Native | Library
+--- | --- | --- | ---
+EVM | Ethereum, BSC, Polygon, Arbitrum One, Optimism, Avalanche C-Chain | ETH / BNB / POL / AVAX | `viem`
+Bitcoin | Mainnet, Testnet | BTC | `mempool.space` API
+Solana | Mainnet, Testnet, Devnet | SOL | `@solana/web3.js`
+TON | Mainnet, Testnet | TON | `@ton/ton` + TON Center
+TRON | Mainnet, Nile Testnet | TRX | `tronweb`
+Cosmos | Cosmos Hub, Osmosis, Celestia, Injective | ATOM / OSMO / TIA / INJ | `@cosmjs/stargate`
+
+## 📦 Install
 
 ```bash
 git clone https://github.com/Makaric/chainforge
@@ -24,7 +34,7 @@ npm run build
 
 Requires Node.js >= 20.
 
-## Usage
+## 🛠️ Usage
 
 ### As a library
 
@@ -62,41 +72,45 @@ await sol.disconnect();
 Install skills by copying the `.md` files from `skills/` into your Claude Code skills directory, or reference them directly.
 
 **Check a balance:**
-```
+
+```bash
 /chainforge-balance ethereum 0x4A88CEA080F9A2e60324799EF91400d13aEE439a
 /chainforge-balance solana HxV7H5fkYdoXBv6PhaR538xcMqSQFD7hVbBWdb3H5CHF
 /chainforge-balance bitcoin bc1q6gdlptzwhdqnrt2n96hjfws50seplkmmxurh3v
 ```
 
 **Gas prices:**
-```
+
+```bash
 /chainforge-gas ethereum
 /chainforge-gas                  # checks Ethereum, BSC, Polygon, Solana, Bitcoin
 ```
 
 **Transaction lookup:**
-```
+
+```bash
 /chainforge-tx ethereum 0xabc123...   # by tx hash
 /chainforge-tx solana <address>        # tx history
 ```
 
 **Tip / donate:**
-```
+
+```bash
 /chainforge-tip                  # show all options
 /chainforge-tip ETH              # generate EIP-681 link
 /chainforge-tip bitcoin 0.0001   # custom amount, BIP-21 URI
 ```
 
-## Skills
+## 🤖 Skills
 
-| Skill | File | Does |
-|-------|------|------|
-| chainforge-balance | `skills/chainforge-balance.md` | Native + token balances across all chains |
-| chainforge-gas | `skills/chainforge-gas.md` | Gas/fee estimates, current block height |
-| chainforge-tx | `skills/chainforge-tx.md` | Transaction lookup by hash or address history |
-| chainforge-tip | `skills/chainforge-tip.md` | Generate voluntary donation links |
+Skill | File | Does
+--- | --- | ---
+chainforge-balance | `skills/chainforge-balance.md` | Native + token balances across all chains
+chainforge-gas | `skills/chainforge-gas.md` | Gas/fee estimates, current block height
+chainforge-tx | `skills/chainforge-tx.md` | Transaction lookup by hash or address history
+chainforge-tip | `skills/chainforge-tip.md` | Generate voluntary donation links
 
-## API Reference
+## 📖 API Reference
 
 ### IBlockchainProvider (all providers)
 
@@ -144,18 +158,11 @@ formatAllTipOptions();  // formatted table of all chains + addresses
 
 Supported tip chains: ETH, BNB, POL, BTC, SOL, TON, TRX. Deep link formats: EIP-681, BIP-21, Solana Pay, ton://.
 
-## Stack
+## 🧪 Quality Assurance
 
-- TypeScript 5, ESM, Node >= 20
-- `viem` — EVM providers
-- `@solana/web3.js` — Solana
-- `bitcoinjs-lib` + mempool.space API — Bitcoin
-- `@ton/ton` — TON
-- `tronweb` — TRON
-- `@cosmjs/stargate` — Cosmos SDK chains
-- `vitest` — 60 tests, all green
-
-## Tests
+- **60+ tests** (via `vitest`) covering all providers, error handlers, and utilities. All green.
+- Strict architectural adherence to the `IBlockchainProvider` unified interface.
+- Code reviewed by the AI Tandem (Claude + Gemini) — all 6 providers passed security and architecture audit.
 
 ```bash
 npm test
@@ -165,20 +172,24 @@ npm test
 
 Tests cover: provider instantiation, address validation, live RPC calls (balance, gas, block height, tx lookup), ERC-20 reads, tip generation.
 
-## License
+## 🥞 Stack
+
+- TypeScript 5, ESM, Node >= 20
+- `viem` — EVM providers
+- `@solana/web3.js` — Solana
+- `bitcoinjs-lib` + mempool.space API — Bitcoin
+- `@ton/ton` — TON
+- `tronweb` — TRON
+- `@cosmjs/stargate` — Cosmos SDK chains
+- `vitest` — testing
+
+## 📄 License
 
 MIT
 
-## Security
+## ⚡ Energy Exchange (Support the Creator)
 
-- Read-only by design. Zero write operations. No transaction signing.
-- No private keys accepted anywhere in the codebase.
-- Tip links are payment URIs only — the user signs in their own wallet.
-- Public RPC endpoints by default (publicnode.com). Bring your own for production.
-
-## Support
-
-If this tool saved your time:
+Every project from the Void is a gift. If ChainForge saved your time or helped you build something great in the wasteland, consider a voluntary energy exchange:
 
 - **ETH:** `0x4A88CEA080F9A2e60324799EF91400d13aEE439a`
 - **BTC:** `bc1q6gdlptzwhdqnrt2n96hjfws50seplkmmxurh3v`
@@ -187,4 +198,4 @@ If this tool saved your time:
 
 ---
 
-Built by [Void Nomad](https://github.com/Makaric)
+Crafted in the Void by [Maxim G. (VoidNomad)](https://github.com/Makaric) & the AI Tandem.
