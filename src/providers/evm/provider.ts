@@ -138,13 +138,16 @@ export class EvmProvider implements IEvmProvider {
 
       let status: TransactionInfo['status'] = 'pending';
       let fee: string | undefined;
+      let timestamp: number | null = null;
 
       if (tx.blockNumber) {
-        const receipt = await client.getTransactionReceipt({
-          hash: hash as `0x${string}`,
-        });
+        const [receipt, block] = await Promise.all([
+          client.getTransactionReceipt({ hash: hash as `0x${string}` }),
+          client.getBlock({ blockNumber: tx.blockNumber }),
+        ]);
         status = receipt.status === 'success' ? 'confirmed' : 'failed';
         fee = formatEther(receipt.gasUsed * receipt.effectiveGasPrice);
+        timestamp = Number(block.timestamp);
       }
 
       return {
@@ -153,7 +156,7 @@ export class EvmProvider implements IEvmProvider {
         to: tx.to,
         value: formatEther(tx.value),
         blockNumber: tx.blockNumber ? Number(tx.blockNumber) : null,
-        timestamp: null, // need getBlock for timestamp
+        timestamp,
         status,
         fee,
       };
