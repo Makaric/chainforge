@@ -125,6 +125,10 @@ export class TronProvider implements IBlockchainProvider {
       const contract = tx.raw_data?.contract?.[0];
       const params = contract?.parameter?.value as unknown as Record<string, unknown> | undefined;
 
+      if (contract?.type === 'TriggerSmartContract') {
+        logger.warn('getTransaction for TRC-20 tokens is not fully supported via RPC. Consider using TronScan API for detailed TRC-20 transaction parsing.');
+      }
+
       const from = params?.owner_address
         ? tw.address.fromHex(params.owner_address as string)
         : '';
@@ -166,7 +170,7 @@ export class TronProvider implements IBlockchainProvider {
       slow: '1',
       standard: '1',
       fast: '1',
-      unit: 'TRX (bandwidth model)',
+      unit: 'TRX (bandwidth/energy model)',
     };
   }
 
@@ -189,15 +193,19 @@ export class TronProvider implements IBlockchainProvider {
     toAddress: string,
     amount: string,
   ): Promise<TipData> {
+    const tw = this.getTronWeb();
     this.validateAddress(toAddress);
+
+    // Convert amount to SUN (1 TRX = 1,000,000 SUN) using BigNumber for precision
+    const amountInSun = new tw.BigNumber(amount).multipliedBy(1e6).toString();
 
     return {
       chain: 'TRON',
       toAddress,
-      amount,
+      amount, // Keep original amount string for display
       currency: 'TRX',
-      deepLink: `tron:${toAddress}?amount=${amount}`,
-      qrData: `tron:${toAddress}?amount=${amount}`,
+      deepLink: `tron:${toAddress}?amount=${amountInSun}`,
+      qrData: `tron:${toAddress}?amount=${amountInSun}`,
     };
   }
 

@@ -194,7 +194,7 @@ export class TonProvider implements IBlockchainProvider {
     const addr = this.parseAddress(toAddress);
 
     // ton:// deep link format
-    const deepLink = `ton://transfer/${addr.toString()}?amount=${Math.round(parseFloat(amount) * 1e9)}`;
+    const deepLink = `ton://transfer/${addr.toString()}?amount=${BigInt(Math.round(parseFloat(amount) * 1e9))}`;
 
     return {
       chain: 'TON',
