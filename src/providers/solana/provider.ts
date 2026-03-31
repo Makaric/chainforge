@@ -160,8 +160,14 @@ export class SolanaProvider implements IBlockchainProvider {
       if (!tx) return null;
 
       return parseSolanaTransaction(hash, tx);
-    } catch {
-      return null;
+    } catch (err) {
+      // Let getParsedTransaction return null for "not found".
+      // We only catch and re-throw actual RPC errors.
+      throw new RpcError(
+        'getParsedTransaction',
+        undefined,
+        err instanceof Error ? err.message : String(err),
+      );
     }
   }
 
@@ -177,7 +183,7 @@ export class SolanaProvider implements IBlockchainProvider {
 
       return signatures.map((sig) => ({
         hash: sig.signature,
-        from: address,
+        from: '', // Direction unknown from signatures alone
         to: null,
         value: '0',
         blockNumber: sig.slot,
