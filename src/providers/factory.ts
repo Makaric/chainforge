@@ -2,6 +2,8 @@ import type { IBlockchainProvider } from '../core/interfaces.js';
 import { EvmProvider } from './evm/index.js';
 import { SolanaProvider } from './solana/provider.js';
 import { TonProvider } from './ton/provider.js';
+import { TronProvider } from './tron/provider.js';
+import { BitcoinProvider } from './bitcoin/index.js';
 
 export class ProviderFactory {
   /**
@@ -22,6 +24,14 @@ export class ProviderFactory {
       return new TonProvider();
     }
 
-    throw new Error(`Неизвестная сеть: ${chain}. Поддерживаются: ethereum, solana, ton.`);
+    if (chainName === 'tron' || chainName === 'trx') {
+      return new TronProvider();
+    }
+
+    if (chainName === 'bitcoin' || chainName === 'btc') {
+      return new BitcoinProvider();
+    }
+
+    throw new Error(`Неизвестная сеть: ${chain}. Поддерживаются: ethereum, solana, ton, tron, bitcoin.`);
   }
 }
