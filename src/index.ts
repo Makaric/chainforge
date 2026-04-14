@@ -16,4 +16,4 @@ export { TonProvider } from './providers/ton/index.js';
 export { CosmosProvider, COSMOS_CHAINS } from './providers/cosmos/index.js';
 
 // Tools
-export { generateTip, getTipOptions, formatTipMessage, formatAllTipOptions } from './tools/tip-generator.js';
+export { TipGenerator } from './tools/tip-generator.js';
