@@ -2,8 +2,23 @@ import { Command } from 'commander';
 import { ProviderFactory } from './providers/factory.js';
 import { TipGenerator } from './tools/tip-generator.js';
 import type { NetworkType } from './core/interfaces.js';
+import type { IEvmProvider } from './core/interfaces.js';
+import { getConfig, setConfig } from './core/config.js';
 
 const program = new Command();
+
+function getResolvedOptions(options: any) {
+  const config = getConfig();
+  const targetChain = options.chain || config.defaultChain;
+  if (!targetChain) {
+    console.error('[!] Ошибка: Не указан блокчейн (-c) и нет значения по умолчанию.');
+    console.error('    Настройте его через: chainforge config -c <chain>');
+    process.exit(1);
+  }
+  const targetNetwork = options.network || config.defaultNetwork || 'mainnet';
+  const targetRpc = options.rpc || (config.rpcUrls && config.rpcUrls[targetChain.toLowerCase()]);
+  return { targetChain, targetNetwork, targetRpc };
+}
 
 program
   .name('chainforge')
@@ -11,22 +26,62 @@ program
   .version('1.0.0');
 
 program
+  .command('config')
+  .description('Настройка параметров по умолчанию (сеть, RPC)')
+  .option('-c, --chain <chain>', 'Установить блокчейн по умолчанию')
+  .option('-n, --network <network>', 'Установить сеть по умолчанию (mainnet, testnet)')
+  .option('-r, --rpc <url>', 'Установить RPC URL для выбранного блокчейна')
+  .action((options) => {
+    const config = getConfig();
+    let updated = false;
+
+    if (options.chain) {
+      config.defaultChain = options.chain;
+      updated = true;
+      console.log(`[Config] Блокчейн по умолчанию: ${options.chain}`);
+    }
+    if (options.network) {
+      config.defaultNetwork = options.network;
+      updated = true;
+      console.log(`[Config] Сеть по умолчанию: ${options.network}`);
+    }
+    if (options.rpc) {
+      const targetChain = (options.chain || config.defaultChain)?.toLowerCase();
+      if (!targetChain) {
+        console.error('[!] Для установки RPC необходимо указать блокчейн (-c) или иметь его в конфиге.');
+        process.exit(1);
+      }
+      if (!config.rpcUrls) config.rpcUrls = {};
+      config.rpcUrls[targetChain] = options.rpc;
+      updated = true;
+      console.log(`[Config] RPC URL для ${targetChain}: ${options.rpc}`);
+    }
+
+    if (updated) {
+      setConfig(config);
+      console.log('✅ Конфигурация успешно сохранена!');
+    } else {
+      console.log('Текущая конфигурация:', JSON.stringify(config, null, 2));
+    }
+  });
+
+program
   .command('tip')
   .description('Генерация read-only транзакции для чаевых')
-  .requiredOption('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana)')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana)')
   .requiredOption('-t, --to <address>', 'Адрес получателя')
   .requiredOption('-a, --amount <amount>', 'Сумма (в нативной валюте, например ETH или SOL)')
-  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)', 'mainnet')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
   .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
   .action(async (options) => {
     console.log('🚀 Запуск ChainForge CLI...\n');
 
     try {
-      const provider = ProviderFactory.create(options.chain);
+      const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
+      const provider = ProviderFactory.create(targetChain);
 
-      console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
-      
-      await provider.connect(options.network as NetworkType, options.rpc);
+      console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
+      await provider.connect(targetNetwork as NetworkType, targetRpc);
       console.log('[CLI] Успешно подключено!\n');
 
       await TipGenerator.execute(provider, options.to, options.amount);
@@ -39,18 +94,19 @@ program
 program
   .command('balance')
   .description('Проверка баланса нативной валюты и токенов (ERC20/SPL)')
-  .requiredOption('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana)')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana)')
   .requiredOption('-a, --address <address>', 'Адрес кошелька для проверки')
-  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)', 'mainnet')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
   .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
   .action(async (options) => {
     console.log('🚀 Запуск ChainForge CLI...\n');
 
     try {
-      const provider = ProviderFactory.create(options.chain);
+      const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
+      const provider = ProviderFactory.create(targetChain);
 
-      console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
-      await provider.connect(options.network as NetworkType, options.rpc);
+      console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
+      await provider.connect(targetNetwork as NetworkType, targetRpc);
       console.log('[CLI] Успешно подключено!\n');
 
       console.log(`[CLI] Запрос балансов для ${options.address}...`);
@@ -79,18 +135,19 @@ program
 program
   .command('tx')
   .description('Просмотр деталей транзакции по хешу')
-  .requiredOption('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana, ton)')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana, ton)')
   .requiredOption('-h, --hash <hash>', 'Хеш транзакции')
-  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)', 'mainnet')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
   .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
   .action(async (options) => {
     console.log('🚀 Запуск ChainForge CLI...\n');
 
     try {
-      const provider = ProviderFactory.create(options.chain);
+      const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
+      const provider = ProviderFactory.create(targetChain);
 
-      console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
-      await provider.connect(options.network as NetworkType, options.rpc);
+      console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
+      await provider.connect(targetNetwork as NetworkType, targetRpc);
       console.log('[CLI] Успешно подключено!\n');
 
       console.log(`[CLI] Запрос данных транзакции: ${options.hash}...`);
@@ -123,17 +180,18 @@ program
 program
   .command('gas')
   .description('Проверка текущей стоимости газа/комиссии')
-  .requiredOption('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana, ton)')
-  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)', 'mainnet')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana, ton)')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
   .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
   .action(async (options) => {
     console.log('🚀 Запуск ChainForge CLI...\n');
 
     try {
-      const provider = ProviderFactory.create(options.chain);
+      const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
+      const provider = ProviderFactory.create(targetChain);
 
-      console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
-      await provider.connect(options.network as NetworkType, options.rpc);
+      console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
+      await provider.connect(targetNetwork as NetworkType, targetRpc);
       console.log('[CLI] Успешно подключено!\n');
 
       console.log(`[CLI] Запрос стоимости газа...`);
@@ -146,6 +204,54 @@ program
       console.log(` 🐢 Медленно:  ${gas.slow} ${gas.unit}`);
       console.log(` 🚶 Стандарт:  ${gas.standard} ${gas.unit}`);
       console.log(` 🚀 Быстро:    ${gas.fast} ${gas.unit}`);
+      console.log('=========================================\n');
+    } catch (error) {
+      console.error('[CLI] Крит. ошибка выполнения:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('logs')
+  .description('Просмотр последних событий (logs) смарт-контракта (только EVM)')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, polygon, bsc)')
+  .requiredOption('-a, --address <address>', 'Адрес смарт-контракта')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
+  .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
+  .action(async (options) => {
+    console.log('🚀 Запуск ChainForge CLI...\n');
+
+    try {
+      const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
+      const provider = ProviderFactory.create(targetChain);
+
+      if (!('getLogs' in provider)) {
+        console.error(`[!] Команда logs поддерживается только для EVM-сетей. Сеть ${provider.name} не подходит.`);
+        process.exit(1);
+      }
+
+      const evmProvider = provider as unknown as IEvmProvider;
+
+      console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
+      await evmProvider.connect(targetNetwork as NetworkType, targetRpc);
+      console.log('[CLI] Успешно подключено!\n');
+
+      console.log(`[CLI] Запрос логов для контракта ${options.address}...`);
+      const logs = await evmProvider.getLogs({ address: options.address });
+
+      console.log('\n=========================================');
+      console.log(` 📋 Логи смарт-контракта`);
+      console.log(` 🔗 Сеть: ${evmProvider.name}`);
+      console.log('-----------------------------------------');
+      if (logs.length === 0) {
+        console.log(' 📭 Новых событий не найдено (или контракт не эмитил их в последних блоках).');
+      } else {
+        logs.slice(0, 10).forEach((log, i) => {
+          console.log(` [${i + 1}] Блок: ${log.blockNumber} | Хеш tx: ${log.transactionHash}`);
+          console.log(`     Topic 0: ${log.topics[0] || 'Н/Д'}`);
+        });
+        if (logs.length > 10) console.log(`\n ... и ещё ${logs.length - 10} событий.`);
+      }
       console.log('=========================================\n');
     } catch (error) {
       console.error('[CLI] Крит. ошибка выполнения:', error instanceof Error ? error.message : error);
