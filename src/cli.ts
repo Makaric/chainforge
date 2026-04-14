@@ -26,11 +26,7 @@ program
 
       console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
       
-      // Для Ethereum без кастомного RPC подставляем llama rpc (Solana использует RPC по умолчанию из класса)
-      const chainName = options.chain.toLowerCase();
-      const rpcUrl = options.rpc || (chainName === 'ethereum' ? 'https://eth.llamarpc.com' : undefined);
-      
-      await provider.connect(options.network as NetworkType, rpcUrl);
+      await provider.connect(options.network as NetworkType, options.rpc);
       console.log('[CLI] Успешно подключено!\n');
 
       await TipGenerator.execute(provider, options.to, options.amount);
@@ -54,9 +50,7 @@ program
       const provider = ProviderFactory.create(options.chain);
 
       console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
-      const chainName = options.chain.toLowerCase();
-      const rpcUrl = options.rpc || (chainName === 'ethereum' ? 'https://eth.llamarpc.com' : undefined);
-      await provider.connect(options.network as NetworkType, rpcUrl);
+      await provider.connect(options.network as NetworkType, options.rpc);
       console.log('[CLI] Успешно подключено!\n');
 
       console.log(`[CLI] Запрос балансов для ${options.address}...`);
@@ -75,6 +69,83 @@ program
       } else {
         console.log('\n 💎 Токены: не найдены (или сеть требует индексатор)');
       }
+      console.log('=========================================\n');
+    } catch (error) {
+      console.error('[CLI] Крит. ошибка выполнения:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('tx')
+  .description('Просмотр деталей транзакции по хешу')
+  .requiredOption('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana, ton)')
+  .requiredOption('-h, --hash <hash>', 'Хеш транзакции')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)', 'mainnet')
+  .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
+  .action(async (options) => {
+    console.log('🚀 Запуск ChainForge CLI...\n');
+
+    try {
+      const provider = ProviderFactory.create(options.chain);
+
+      console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
+      await provider.connect(options.network as NetworkType, options.rpc);
+      console.log('[CLI] Успешно подключено!\n');
+
+      console.log(`[CLI] Запрос данных транзакции: ${options.hash}...`);
+      const tx = await provider.getTransaction(options.hash);
+
+      if (!tx) {
+        console.log(`\n[!] Транзакция не найдена или еще не добыта.`);
+        return;
+      }
+
+      console.log('\n=========================================');
+      console.log(` 📜 Детали транзакции`);
+      console.log(` 🔗 Сеть: ${provider.name}`);
+      console.log('-----------------------------------------');
+      console.log(` 🆔 Хеш: ${tx.hash}`);
+      console.log(` 🚥 Статус: ${tx.status.toUpperCase()}`);
+      console.log(` 📤 Отправитель: ${tx.from}`);
+      console.log(` 📥 Получатель: ${tx.to || 'Н/Д (Создание контракта)'}`);
+      console.log(` 💰 Сумма: ${tx.value}`);
+      if (tx.fee) console.log(` 💸 Комиссия: ${tx.fee}`);
+      if (tx.blockNumber) console.log(` 📦 Блок: ${tx.blockNumber}`);
+      if (tx.timestamp) console.log(` ⏱️  Время: ${new Date(tx.timestamp * 1000).toLocaleString()}`);
+      console.log('=========================================\n');
+    } catch (error) {
+      console.error('[CLI] Крит. ошибка выполнения:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('gas')
+  .description('Проверка текущей стоимости газа/комиссии')
+  .requiredOption('-c, --chain <chain>', 'Блокчейн (например: ethereum, solana, ton)')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)', 'mainnet')
+  .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
+  .action(async (options) => {
+    console.log('🚀 Запуск ChainForge CLI...\n');
+
+    try {
+      const provider = ProviderFactory.create(options.chain);
+
+      console.log(`[CLI] Подключение к сети ${provider.name} (${options.network})...`);
+      await provider.connect(options.network as NetworkType, options.rpc);
+      console.log('[CLI] Успешно подключено!\n');
+
+      console.log(`[CLI] Запрос стоимости газа...`);
+      const gas = await provider.getGasPrice();
+
+      console.log('\n=========================================');
+      console.log(` ⛽ Оценка стоимости газа / комиссии`);
+      console.log(` 🔗 Сеть: ${provider.name}`);
+      console.log('-----------------------------------------');
+      console.log(` 🐢 Медленно:  ${gas.slow} ${gas.unit}`);
+      console.log(` 🚶 Стандарт:  ${gas.standard} ${gas.unit}`);
+      console.log(` 🚀 Быстро:    ${gas.fast} ${gas.unit}`);
       console.log('=========================================\n');
     } catch (error) {
       console.error('[CLI] Крит. ошибка выполнения:', error instanceof Error ? error.message : error);

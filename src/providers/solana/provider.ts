@@ -15,6 +15,7 @@ import type {
   TokenBalance,
   GasEstimate,
   TipData,
+  TransactionInfo,
 } from '../../core/interfaces.js';
 import {
   ConnectionError,
@@ -52,6 +53,24 @@ export class SolanaProvider implements IBlockchainProvider {
         'Solana',
         err instanceof Error ? err.message : String(err),
       );
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    this.connection = null;
+    logger.info(`[Solana] Disconnected`);
+  }
+
+  isConnected(): boolean {
+    return this.connection !== null;
+  }
+
+  async getBlockHeight(): Promise<number> {
+    const conn = this.ensureConnected();
+    try {
+      return await conn.getSlot();
+    } catch (err) {
+      throw new RpcError('getSlot', undefined, err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -177,5 +196,44 @@ export class SolanaProvider implements IBlockchainProvider {
       deepLink,
       qrData: deepLink,
     };
+  }
+
+  async getTransaction(hash: string): Promise<TransactionInfo | null> {
+    const conn = this.ensureConnected();
+
+    try {
+      const tx = await conn.getTransaction(hash, { maxSupportedTransactionVersion: 0 });
+      if (!tx) return null;
+
+      const err = tx.meta?.err;
+      const status = err ? 'failed' : 'confirmed';
+      const fee = tx.meta?.fee ? (tx.meta.fee / LAMPORTS_PER_SOL).toFixed(9) : undefined;
+      
+      let from = '';
+      let to = null;
+      let value = '0';
+
+      if (tx.transaction.message.staticAccountKeys.length > 0) {
+        from = tx.transaction.message.staticAccountKeys[0].toBase58();
+      }
+      
+      if (tx.meta?.preBalances && tx.meta?.postBalances) {
+        const diff = tx.meta.preBalances[0] - tx.meta.postBalances[0] - (tx.meta.fee || 0);
+        value = (Math.abs(diff) / LAMPORTS_PER_SOL).toFixed(9);
+      }
+
+      return {
+        hash,
+        from,
+        to,
+        value,
+        blockNumber: tx.slot,
+        timestamp: tx.blockTime || null,
+        status,
+        fee
+      };
+    } catch (err) {
+      throw new RpcError('getTransaction', undefined, err instanceof Error ? err.message : String(err));
+    }
   }
 }

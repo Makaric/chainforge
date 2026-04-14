@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { IBlockchainProvider, NetworkType, TokenBalance, GasEstimate } from '../../core/interfaces.js';
+import { IBlockchainProvider, NetworkType, TokenBalance, GasEstimate, TransactionInfo } from '../../core/interfaces.js';
 
 export class EvmProvider implements IBlockchainProvider {
   public readonly name: string;
@@ -73,6 +73,38 @@ export class EvmProvider implements IBlockchainProvider {
       type: 'eip681',
       uri: uri,
       message: 'Отсканируйте QR-код или перейдите по ссылке, чтобы отправить чаевые.'
+    };
+  }
+
+  public async getTransaction(hash: string): Promise<TransactionInfo | null> {
+    this.ensureConnected();
+    const tx = await this.provider!.getTransaction(hash);
+    if (!tx) return null;
+
+    const receipt = await this.provider!.getTransactionReceipt(hash);
+    let status: 'confirmed' | 'pending' | 'failed' = 'pending';
+    let fee = undefined;
+
+    if (receipt) {
+      status = receipt.status === 1 ? 'confirmed' : 'failed';
+      fee = ethers.formatEther(receipt.fee);
+    }
+
+    let timestamp = null;
+    if (tx.blockNumber) {
+      const block = await this.provider!.getBlock(tx.blockNumber);
+      timestamp = block?.timestamp || null;
+    }
+
+    return {
+      hash: tx.hash,
+      from: tx.from,
+      to: tx.to || null,
+      value: ethers.formatEther(tx.value),
+      blockNumber: tx.blockNumber || null,
+      timestamp,
+      status,
+      fee
     };
   }
 

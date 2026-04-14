@@ -6,6 +6,7 @@ import type {
   TokenBalance,
   GasEstimate,
   TipData,
+  TransactionInfo,
 } from '../../core/interfaces.js';
 import {
   ConnectionError,
@@ -41,6 +42,38 @@ export class TonProvider implements IBlockchainProvider {
         'TON',
         err instanceof Error ? err.message : String(err),
       );
+    }
+  }
+
+  async disconnect(): Promise<void> {
+    this.client = null;
+    logger.info(`[TON] Disconnected`);
+  }
+
+  isConnected(): boolean {
+    return this.client !== null;
+  }
+
+  async getBlockHeight(): Promise<number> {
+    const client = this.ensureConnected();
+    try {
+      const info = await client.getMasterchainInfo();
+      return info.latestSeqno;
+    } catch (err) {
+      throw new RpcError('getMasterchainInfo', undefined, err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  async getAccountState(address: string): Promise<string> {
+    const client = this.ensureConnected();
+    if (!this.isValidAddress(address)) {
+      throw new InvalidAddressError(address, 'TON');
+    }
+    try {
+      const state = await client.getContractState(Address.parse(address));
+      return state.state;
+    } catch (err) {
+      throw new RpcError('getContractState', undefined, err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -116,5 +149,12 @@ export class TonProvider implements IBlockchainProvider {
       deepLink,
       qrData: deepLink,
     };
+  }
+
+  async getTransaction(hash: string): Promise<TransactionInfo | null> {
+    this.ensureConnected();
+    // TON v2 API (TonClient) не поддерживает получение транзакции только по хешу.
+    logger.warn('[TON] getTransaction requires an indexer API (e.g., TONAPI v3) or logical time. Not supported in base TonClient.');
+    throw new Error('Опция просмотра транзакции по хешу в TON временно недоступна (требуется API индексатора)');
   }
 }
