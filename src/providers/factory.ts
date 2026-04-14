@@ -1,0 +1,27 @@
+import type { IBlockchainProvider } from '../core/interfaces.js';
+import { EvmProvider } from './evm/index.js';
+import { SolanaProvider } from './solana/provider.js';
+import { TonProvider } from './ton/provider.js';
+
+export class ProviderFactory {
+  /**
+   * Создает инстанс провайдера на основе переданного имени сети.
+   */
+  public static create(chain: string): IBlockchainProvider {
+    const chainName = chain.toLowerCase();
+
+    if (chainName === 'solana') {
+      return new SolanaProvider();
+    }
+
+    if (chainName === 'ethereum' || chainName === 'evm') {
+      return new EvmProvider(chainName === 'evm' ? 'ethereum' : chainName);
+    }
+
+    if (chainName === 'ton') {
+      return new TonProvider();
+    }
+
+    throw new Error(`Неизвестная сеть: ${chain}. Поддерживаются: ethereum, solana, ton.`);
+  }
+}

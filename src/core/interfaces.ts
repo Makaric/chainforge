@@ -1,10 +1,3 @@
-/**
- * ChainForge Core Interfaces
- *
- * Единые контракты для всех блокчейн-провайдеров.
- * Все операции READ-ONLY по умолчанию.
- */
-
 export type NetworkType = 'mainnet' | 'testnet' | 'devnet';
 
 export type ChainFamily =
@@ -14,6 +7,20 @@ export type ChainFamily =
   | 'ton'
   | 'tron'
   | 'cosmos';
+
+export interface TokenBalance {
+  symbol: string;
+  balance: string;
+  decimals: number;
+  contractAddress?: string;
+}
+
+export interface GasEstimate {
+  slow: string;
+  standard: string;
+  fast: string;
+  unit: string;
+}
 
 export interface ChainInfo {
   name: string;
@@ -27,14 +34,6 @@ export interface ChainInfo {
   explorerUrl?: string;
 }
 
-export interface TokenBalance {
-  symbol: string;
-  name?: string;
-  balance: string;
-  decimals: number;
-  contractAddress?: string;
-}
-
 export interface TransactionInfo {
   hash: string;
   from: string;
@@ -46,27 +45,6 @@ export interface TransactionInfo {
   fee?: string;
 }
 
-export interface GasEstimate {
-  slow: string;
-  standard: string;
-  fast: string;
-  unit: string;
-}
-
-export interface ContractAuditResult {
-  address: string;
-  verified: boolean;
-  sourceAvailable: boolean;
-  warnings: string[];
-  risks: AuditRisk[];
-}
-
-export interface AuditRisk {
-  severity: 'critical' | 'high' | 'medium' | 'low' | 'info';
-  title: string;
-  description: string;
-}
-
 export interface TipData {
   chain: string;
   toAddress: string;
@@ -76,57 +54,11 @@ export interface TipData {
   qrData?: string;
 }
 
-/**
- * Единый интерфейс для любого блокчейн-провайдера в ChainForge.
- * Все методы — read-only. Никаких приватных ключей.
- */
-export interface IBlockchainProvider {
-  readonly name: string;
-  readonly chain: ChainInfo;
-
-  connect(network: NetworkType, rpcUrl?: string): Promise<void>;
-  disconnect(): Promise<void>;
-  isConnected(): boolean;
-
-  getNativeBalance(address: string): Promise<string>;
-  getTokenBalances(address: string): Promise<TokenBalance[]>;
-  getTransaction(hash: string): Promise<TransactionInfo | null>;
-  getTransactionHistory(
-    address: string,
-    limit?: number,
-  ): Promise<TransactionInfo[]>;
-
-  isValidAddress(address: string): boolean;
-
-  getGasPrice(): Promise<GasEstimate>;
-  getBlockHeight(): Promise<number>;
-
-  generateTipTransaction(
-    toAddress: string,
-    amount: string,
-  ): Promise<TipData>;
-}
-
-/**
- * Расширенный интерфейс для EVM-совместимых сетей.
- */
-export interface IEvmProvider extends IBlockchainProvider {
-  readContract(
-    contractAddress: string,
-    abi: readonly unknown[],
-    method: string,
-    args?: unknown[],
-  ): Promise<unknown>;
-
-  getContractCode(address: string): Promise<string>;
-  getLogs(filter: EvmLogFilter): Promise<EvmLog[]>;
-}
-
 export interface EvmLogFilter {
   address?: string;
-  topics?: (string | null)[];
-  fromBlock?: number | 'latest';
-  toBlock?: number | 'latest';
+  topics?: string[];
+  fromBlock?: bigint;
+  toBlock?: bigint;
 }
 
 export interface EvmLog {
@@ -136,4 +68,30 @@ export interface EvmLog {
   blockNumber: number;
   transactionHash: string;
   logIndex: number;
+}
+
+/**
+ * Extended EVM provider interface
+ */
+export interface IEvmProvider extends IBlockchainProvider {
+  getLogs(filter: EvmLogFilter): Promise<EvmLog[]>;
+}
+
+/**
+ * Единый интерфейс для любого блокчейн-провайдера в ChainForge
+ */
+export interface IBlockchainProvider {
+  readonly name: string;
+
+  connect(network: NetworkType, rpcUrl?: string): Promise<void>;
+
+  getNativeBalance(address: string): Promise<string>;
+
+  getTokenBalances(address: string): Promise<TokenBalance[]>;
+
+  isValidAddress(address: string): boolean;
+
+  getGasPrice(): Promise<GasEstimate>;
+
+  generateTipTransaction(toAddress: string, amountStr: string): Promise<TipData>;
 }
