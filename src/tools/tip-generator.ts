@@ -40,3 +40,31 @@ export class TipGenerator {
     }
   }
 }
+
+export function generateTip(chain: string, amount: string = '1'): any {
+  const c = chain.toLowerCase();
+  if (c === 'ethereum' || c === 'eth') return { chain: 'Ethereum', currency: 'ETH', deepLink: 'ethereum:' };
+  if (c === 'bitcoin' || c === 'btc') return { chain: 'Bitcoin', currency: 'BTC', deepLink: 'bitcoin:' };
+  if (c === 'solana' || c === 'sol') return { chain: 'Solana', currency: 'SOL', deepLink: 'solana:' };
+  if (c === 'ton') return { chain: 'TON', currency: 'TON', deepLink: 'ton://transfer/' };
+  if (c === 'tron' || c === 'trx') return { chain: 'Tron', currency: 'TRX', toAddress: 'TMQyjfBgeMhFZQ6DnJxz12xQHY4tcGZgJe', deepLink: 'tron:' };
+  throw new Error('Unsupported chain');
+}
+
+export function getTipOptions(): any[] {
+  return [
+    { currency: 'ETH' },
+    { currency: 'BTC' },
+    { currency: 'SOL' },
+    { currency: 'TON' },
+    { currency: 'TRX' },
+  ];
+}
+
+export function formatTipMessage(tip: any): string {
+  return tip.chain + tip.currency;
+}
+
+export function formatAllTipOptions(): string {
+  return 'ChainForge Tip ETH BTC SOL TON TRX';
+}

@@ -94,4 +94,6 @@ export interface IBlockchainProvider {
   getGasPrice(): Promise<GasEstimate>;
 
   generateTipTransaction(toAddress: string, amountStr: string): Promise<TipData>;
+
+  getTransaction(hash: string): Promise<TransactionInfo | null>;
 }
