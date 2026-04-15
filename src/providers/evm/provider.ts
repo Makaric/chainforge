@@ -339,11 +339,11 @@ export class EvmProvider implements IEvmProvider {
     };
   }
 
-  async getErc20Balance(
-    contractAddress: string,
+  async getErc20TokenBalance(
     walletAddress: string,
+    tokenAddress: string,
   ): Promise<TokenBalance> {
-    const contract = this.validateAddress(contractAddress);
+    const contract = this.validateAddress(tokenAddress);
     const wallet = this.validateAddress(walletAddress);
 
     const [symbol, decimals, balance] = await Promise.all([

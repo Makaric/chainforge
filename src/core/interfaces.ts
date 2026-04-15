@@ -75,6 +75,8 @@ export interface EvmLog {
  */
 export interface IEvmProvider extends IBlockchainProvider {
   getLogs(filter: EvmLogFilter): Promise<EvmLog[]>;
+  getContractCode(address: string): Promise<string>;
+  getErc20TokenBalance(walletAddress: string, tokenAddress: string): Promise<TokenBalance>;
 }
 
 /**
