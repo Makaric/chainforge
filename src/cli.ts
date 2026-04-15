@@ -3,6 +3,7 @@ import { ProviderFactory } from './providers/factory.js';
 import { TipGenerator } from './tools/tip-generator.js';
 import type { NetworkType } from './core/interfaces.js';
 import type { IEvmProvider } from './core/interfaces.js';
+import type { ITonProvider } from './core/interfaces.js';
 import { getConfig, setConfig } from './core/config.js';
 
 const program = new Command();
@@ -310,10 +311,10 @@ program
 
 program
   .command('token')
-  .description('Проверка баланса конкретного ERC-20 токена (только EVM)')
-  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, polygon, bsc)')
+  .description('Проверка баланса конкретного токена (ERC-20 для EVM, Jetton для TON)')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, ton)')
   .requiredOption('-a, --address <address>', 'Адрес кошелька пользователя')
-  .requiredOption('-t, --token <token>', 'Адрес смарт-контракта токена (ERC-20)')
+  .requiredOption('-t, --token <token>', 'Адрес смарт-контракта токена (ERC-20 или Jetton Master)')
   .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
   .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
   .action(async (options) => {
@@ -323,23 +324,26 @@ program
       const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
       const provider = ProviderFactory.create(targetChain);
 
-      if (!('getErc20TokenBalance' in provider)) {
-        console.error(`[!] Команда token пока поддерживается только для EVM-сетей. Сеть ${provider.name} не подходит.`);
+      if (!('getErc20TokenBalance' in provider) && !('getJettonBalance' in provider)) {
+        console.error(`[!] Команда token пока поддерживается только для EVM и TON. Сеть ${provider.name} не подходит.`);
         process.exit(1);
       }
 
-      const evmProvider = provider as unknown as IEvmProvider;
-
       console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
-      await evmProvider.connect(targetNetwork as NetworkType, targetRpc);
+      await provider.connect(targetNetwork as NetworkType, targetRpc);
       console.log('[CLI] Успешно подключено!\n');
 
       console.log(`[CLI] Запрос данных токена ${options.token} для кошелька ${options.address}...`);
-      const tokenInfo = await evmProvider.getErc20TokenBalance(options.address, options.token);
+      let tokenInfo;
+      if ('getJettonBalance' in provider) {
+        tokenInfo = await (provider as unknown as ITonProvider).getJettonBalance(options.address, options.token);
+      } else {
+        tokenInfo = await (provider as unknown as IEvmProvider).getErc20TokenBalance(options.address, options.token);
+      }
 
       console.log('\n=========================================');
-      console.log(` 🪙  Токен-баланс (ERC-20)`);
-      console.log(` 🔗 Сеть: ${evmProvider.name}`);
+      console.log(` 🪙  Токен-баланс`);
+      console.log(` 🔗 Сеть: ${provider.name}`);
       console.log('-----------------------------------------');
       console.log(` 👤 Кошелек: ${options.address}`);
       console.log(` 📦 Контракт: ${options.token}`);
