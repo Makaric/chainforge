@@ -103,7 +103,7 @@ describe('EvmProvider', () => {
     }, 15000);
 
     it('should read ERC-20 balance', async () => {
-      const token = await provider.getErc20Balance(USDT_CONTRACT, TEST_WALLET);
+      const token = await provider.getErc20TokenBalance(TEST_WALLET, USDT_CONTRACT);
       expect(token.symbol).toBe('USDT');
       expect(token.decimals).toBe(6);
       expect(typeof token.balance).toBe('string');

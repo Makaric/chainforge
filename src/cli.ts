@@ -259,4 +259,97 @@ program
     }
   });
 
+program
+  .command('inspect')
+  .description('Проверка адреса (EOA или смарт-контракт)')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, polygon, bsc)')
+  .requiredOption('-a, --address <address>', 'Адрес для проверки')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
+  .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
+  .action(async (options) => {
+    console.log('🚀 Запуск ChainForge CLI...\n');
+
+    try {
+      const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
+      const provider = ProviderFactory.create(targetChain);
+
+      if (!('getContractCode' in provider)) {
+        console.error(`[!] Команда inspect поддерживается только для EVM-сетей. Сеть ${provider.name} не подходит.`);
+        process.exit(1);
+      }
+
+      const evmProvider = provider as unknown as IEvmProvider;
+
+      console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
+      await evmProvider.connect(targetNetwork as NetworkType, targetRpc);
+      console.log('[CLI] Успешно подключено!\n');
+
+      console.log(`[CLI] Проверка адреса ${options.address}...`);
+      const code = await evmProvider.getContractCode(options.address);
+
+      console.log('\n=========================================');
+      console.log(` 🔍 Инспекция адреса`);
+      console.log(` 🔗 Сеть: ${evmProvider.name}`);
+      console.log('-----------------------------------------');
+      console.log(` 🎯 Адрес: ${options.address}`);
+      
+      if (code === '0x' || code === '') {
+        console.log(` 👤 Тип: Обычный кошелек (EOA - Externally Owned Account)`);
+        console.log(` 📄 Код контракта: Отсутствует`);
+      } else {
+        console.log(` 🤖 Тип: Смарт-контракт`);
+        console.log(` 📦 Размер байткода: ${(code.length - 2) / 2} байт`);
+        console.log(` 💻 Байткод (превью): ${code.substring(0, 42)}...`);
+      }
+      console.log('=========================================\n');
+    } catch (error) {
+      console.error('[CLI] Крит. ошибка выполнения:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('token')
+  .description('Проверка баланса конкретного ERC-20 токена (только EVM)')
+  .option('-c, --chain <chain>', 'Блокчейн (например: ethereum, polygon, bsc)')
+  .requiredOption('-a, --address <address>', 'Адрес кошелька пользователя')
+  .requiredOption('-t, --token <token>', 'Адрес смарт-контракта токена (ERC-20)')
+  .option('-n, --network <network>', 'Тип сети (mainnet, testnet, devnet)')
+  .option('-r, --rpc <url>', 'Кастомный RPC URL (опционально)')
+  .action(async (options) => {
+    console.log('🚀 Запуск ChainForge CLI...\n');
+
+    try {
+      const { targetChain, targetNetwork, targetRpc } = getResolvedOptions(options);
+      const provider = ProviderFactory.create(targetChain);
+
+      if (!('getErc20TokenBalance' in provider)) {
+        console.error(`[!] Команда token пока поддерживается только для EVM-сетей. Сеть ${provider.name} не подходит.`);
+        process.exit(1);
+      }
+
+      const evmProvider = provider as unknown as IEvmProvider;
+
+      console.log(`[CLI] Подключение к сети ${provider.name} (${targetNetwork})...`);
+      await evmProvider.connect(targetNetwork as NetworkType, targetRpc);
+      console.log('[CLI] Успешно подключено!\n');
+
+      console.log(`[CLI] Запрос данных токена ${options.token} для кошелька ${options.address}...`);
+      const tokenInfo = await evmProvider.getErc20TokenBalance(options.address, options.token);
+
+      console.log('\n=========================================');
+      console.log(` 🪙  Токен-баланс (ERC-20)`);
+      console.log(` 🔗 Сеть: ${evmProvider.name}`);
+      console.log('-----------------------------------------');
+      console.log(` 👤 Кошелек: ${options.address}`);
+      console.log(` 📦 Контракт: ${options.token}`);
+      console.log(` 💎 Баланс:  ${tokenInfo.balance} ${tokenInfo.symbol}`);
+      console.log(` ⚙️  Децималы: ${tokenInfo.decimals}`);
+      console.log('=========================================\n');
+    } catch (error) {
+      console.error('[CLI] Крит. ошибка выполнения:', error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 program.parse(process.argv);
