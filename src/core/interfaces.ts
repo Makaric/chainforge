@@ -80,6 +80,13 @@ export interface IEvmProvider extends IBlockchainProvider {
 }
 
 /**
+ * Extended TON provider interface
+ */
+export interface ITonProvider extends IBlockchainProvider {
+  getJettonBalance(walletAddress: string, jettonMasterAddress: string): Promise<TokenBalance>;
+}
+
+/**
  * Единый интерфейс для любого блокчейн-провайдера в ChainForge
  */
 export interface IBlockchainProvider {

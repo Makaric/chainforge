@@ -1,4 +1,5 @@
 import { TonClient, Address, toNano } from '@ton/ton';
+import { TupleBuilder } from '@ton/core';
 
 import type {
   IBlockchainProvider,
@@ -7,6 +8,7 @@ import type {
   GasEstimate,
   TipData,
   TransactionInfo,
+  ITonProvider,
 } from '../../core/interfaces.js';
 import {
   ConnectionError,
@@ -21,7 +23,12 @@ const RPC_URLS: Record<NetworkType, string> = {
   devnet: 'https://testnet.toncenter.com/api/v2/jsonRPC',
 };
 
-export class TonProvider implements IBlockchainProvider {
+/** Нормализует URL-safe Base64 → стандартный Base64 для TON адресов */
+function normalizeTonAddress(address: string): string {
+  return address.replace(/-/g, '+').replace(/_/g, '/');
+}
+
+export class TonProvider implements ITonProvider {
   readonly name = 'TON';
 
   private client: TonClient | null = null;
@@ -70,7 +77,7 @@ export class TonProvider implements IBlockchainProvider {
       throw new InvalidAddressError(address, 'TON');
     }
     try {
-      const state = await client.getContractState(Address.parse(address));
+      const state = await client.getContractState(Address.parse(normalizeTonAddress(address)));
       return state.state;
     } catch (err) {
       throw new RpcError('getContractState', undefined, err instanceof Error ? err.message : String(err));
@@ -86,7 +93,7 @@ export class TonProvider implements IBlockchainProvider {
 
   isValidAddress(address: string): boolean {
     try {
-      Address.parse(address);
+      Address.parse(normalizeTonAddress(address));
       return true;
     } catch {
       return false;
@@ -95,13 +102,13 @@ export class TonProvider implements IBlockchainProvider {
 
   async getNativeBalance(address: string): Promise<string> {
     const client = this.ensureConnected();
-    
+
     if (!this.isValidAddress(address)) {
       throw new InvalidAddressError(address, 'TON');
     }
 
     try {
-      const balance = await client.getBalance(Address.parse(address));
+      const balance = await client.getBalance(Address.parse(normalizeTonAddress(address)));
       // Конвертируем из нанотонов (bigint) в TON
       return (Number(balance) / 1e9).toString();
     } catch (err) {
@@ -156,5 +163,44 @@ export class TonProvider implements IBlockchainProvider {
     // TON v2 API (TonClient) не поддерживает получение транзакции только по хешу.
     logger.warn('[TON] getTransaction requires an indexer API (e.g., TONAPI v3) or logical time. Not supported in base TonClient.');
     throw new Error('Опция просмотра транзакции по хешу в TON временно недоступна (требуется API индексатора)');
+  }
+
+  async getJettonBalance(walletAddress: string, jettonMasterAddress: string): Promise<TokenBalance> {
+    const client = this.ensureConnected();
+    if (!this.isValidAddress(walletAddress)) {
+      throw new InvalidAddressError(walletAddress, 'TON');
+    }
+    if (!this.isValidAddress(jettonMasterAddress)) {
+      throw new InvalidAddressError(jettonMasterAddress, 'TON');
+    }
+
+    try {
+      const ownerAddress = Address.parse(normalizeTonAddress(walletAddress));
+      const masterAddress = Address.parse(normalizeTonAddress(jettonMasterAddress));
+
+      // 1. Вычисляем адрес Jetton Wallet для этого кошелька
+      const tb = new TupleBuilder();
+      tb.writeAddress(ownerAddress);
+      const walletAddrResult = await client.runMethod(masterAddress, 'get_wallet_address', tb.build());
+      const jettonWalletAddress = walletAddrResult.stack.readAddress();
+
+      // 2. Запрашиваем баланс из Jetton Wallet
+      let balance = 0n;
+      try {
+        const walletData = await client.runMethod(jettonWalletAddress, 'get_wallet_data');
+        balance = walletData.stack.readBigNumber();
+      } catch (e) {
+        // Смарт-контракт кошелька не существует (баланс 0)
+      }
+
+      return {
+        symbol: 'JETTON', // Парсинг TEP-64 метаданных без API-индексатора слишком тяжеловесен
+        balance: (Number(balance) / 1e6).toString(), // Дефолтные 6 децималей (например, у USDT в TON)
+        decimals: 6,
+        contractAddress: jettonMasterAddress
+      };
+    } catch (err) {
+      throw new RpcError('getJettonBalance', undefined, err instanceof Error ? err.message : String(err));
+    }
   }
 }
